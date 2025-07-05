@@ -1,0 +1,23 @@
+name: fa_env          # feedback‑alignment ViT environment
+channels:
+  - pytorch           # ensures PyTorch / torchvision come from the same build
+  - conda-forge       # wide selection of scientific & utility packages
+  - defaults
+dependencies:
+  # ── Core ────────────────────────────────────────────────────────────
+  - python=3.9                  # stable target for all listed libs
+  - pytorch=2.0.1               # >=2.0, CUDA 11.8 build
+  - torchvision=0.15.2          # pairs with PyTorch 2.0.1
+  - numpy=1.23.5                # >=1.21, fits PyTorch wheels
+  - scikit-learn=1.2.2          # >=1.1
+  - tqdm=4.66.1                 # >=4.64
+  - pillow=10.0.0               # >=9.2
+
+  # ── Optional: add your GPU toolkit explicitly if needed ─────────────
+  # - cudatoolkit=11.8          # remove or change to 12.x if required
+
+  # ── Utility ─────────────────────────────────────────────────────────
+  - pip                         # pip sub‑section for packages not on conda
+  - pip:
+      - timm==0.9.2             # ViT & Swin implementations
+      - kaggle==1.5.16          # Kaggle API client
