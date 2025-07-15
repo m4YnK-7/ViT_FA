@@ -9,6 +9,7 @@ from torchvision import transforms
 from tqdm import tqdm
 
 from src.dataset import PCamDataset, download_pcam
+from src.models.vit_bp import ViTBP
 from src.models.vit_fa import ViTFA
 
 
@@ -39,6 +40,7 @@ def train(
     device: Optional[str] = None,
     limit_samples: Optional[int] = None,
     visualize: bool = False,
+    model_type: str = "fa",
 ) -> None:
     """Train ViT with Feedback Alignment (ViTFA) on the PCam dataset.
 
@@ -57,7 +59,9 @@ def train(
     num_workers : int, default 4
         Number of worker processes for ``torch.utils.data.DataLoader``.
     checkpoint_dir : str, default "checkpoints"
-        Directory where the best model (by validation accuracy) will be saved.
+        Root directory under which model-specific subfolders will be created.
+    model_type : {"fa", "bp"}, default "fa"
+        Which model variant to train.
     device : str or None, default None
         Device on which to run the training ("cuda"/"cpu"). If None, chooses
         CUDA if available, else CPU.
@@ -126,7 +130,13 @@ def train(
     # ---------------------------------------------------------------------
     # Model, loss, optimizer, scheduler
     # ---------------------------------------------------------------------
-    model = ViTFA(num_classes=2)
+    model_type_lc = model_type.lower()
+    if model_type_lc in {"fa", "vitfa"}:
+        model = ViTFA(num_classes=2)
+    elif model_type_lc in {"bp", "vitbp", "backprop"}:
+        model = ViTBP(num_classes=2)
+    else:
+        raise ValueError("model_type must be 'fa' or 'bp'")
     model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -136,7 +146,8 @@ def train(
     # ---------------------------------------------------------------------
     # Training / validation loop
     # ---------------------------------------------------------------------
-    os.makedirs(checkpoint_dir, exist_ok=True)
+    model_ckpt_dir = Path(checkpoint_dir) / model_type_lc
+    os.makedirs(model_ckpt_dir, exist_ok=True)
     best_acc = 0.0
 
     # Lists for visualization
@@ -197,7 +208,7 @@ def train(
         # Save the best model
         if val_acc > best_acc:
             best_acc = val_acc
-            ckpt_path = Path(checkpoint_dir) / "best_model.pth"
+            ckpt_path = model_ckpt_dir / "best_model.pth"
             torch.save(model.state_dict(), ckpt_path)
             print(f"Saved new best model (Acc={best_acc:.4f}) to {ckpt_path}")
 
@@ -232,7 +243,7 @@ def train(
             plt.legend()
 
             plt.tight_layout()
-            fig_path = Path(checkpoint_dir) / "training_curves.png"
+            fig_path = model_ckpt_dir / "training_curves.png"
             plt.savefig(fig_path)
             plt.show()
             print(f"Training curves saved to {fig_path}")
@@ -245,5 +256,5 @@ def train(
 # -----------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    # Quick sanity-check run on 1,000 samples when executed directly with visualization.
-    train(limit_samples=1000, visualize=True) 
+    # Quick sanity-check run on 10,000 samples with visualization.
+    train(limit_samples=10000, visualize=True, model_type="bp") 

@@ -34,22 +34,25 @@ def accuracy(output: torch.Tensor, target: torch.Tensor) -> float:  # noqa: D401
 # -----------------------------------------------------------------------------
 
 def evaluate(
-    checkpoint: Union[str, Path] = "checkpoints/best_model.pth",
+    checkpoint: Optional[Union[str, Path]] = None,
     data_root: Union[str, Path] = "data/pcam",
     *,
     batch_size: int = 128,
     num_workers: int = 4,
     device: Optional[str] = None,
-    visualize: bool = False,
+    visualize: bool = True,
     num_vis_images: int = 25,
     limit_samples: Optional[int] = None,
+    model_type: str = "fa",
 ) -> None:
     """Evaluate a trained model on the *test* split and optionally visualise.
 
     Parameters
     ----------
-    checkpoint : str or Path
-        Path to the ``.pth`` checkpoint containing model weights.
+    checkpoint : str or Path or None
+        Path to the ``.pth`` checkpoint containing model weights. If ``None``
+        (default), will look for
+        ``checkpoints/<model_type>/best_model.pth``.
     data_root : str or Path, default "data/pcam"
         Root directory comprising train/val/test sub-folders with HDF5 files.
     batch_size : int, default 128
@@ -64,6 +67,10 @@ def evaluate(
         Number of sample images to plot in the grid (must be square-number).
     limit_samples : int or None, default None
         Restrict evaluation to first ``limit_samples`` items (debugging).
+    model_type : {"fa", "bp"}, default "fa"
+        Which model type to evaluate:
+        - "fa" for Feedback Alignment (ViTFA)
+        - "bp" for standard back-prop (ViTBP)
     """
 
     # ------------------------ setup ------------------------
@@ -87,9 +94,24 @@ def evaluate(
         pin_memory=True,
     )
 
-    # Model
-    model = ViTFA(num_classes=2)
-    checkpoint = Path(checkpoint)
+    # ------------------------ model ------------------------
+    # Resolve model class based on 'model_type'
+    model_type_lc = model_type.lower()
+    if model_type_lc in {"fa", "vitfa"}:
+        model_cls = ViTFA
+    elif model_type_lc in {"bp", "vitbp", "backprop"}:
+        from src.models import ViTBP  # local import to avoid unnecessary deps
+        model_cls = ViTBP
+    else:
+        raise ValueError("model_type must be 'fa' or 'bp'")
+
+    model = model_cls(num_classes=2)
+
+    if checkpoint is None:
+        checkpoint = Path("checkpoints") / model_type_lc / "best_model.pth"
+    else:
+        checkpoint = Path(checkpoint)
+
     if not checkpoint.exists():
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint}")
     model.load_state_dict(torch.load(checkpoint, map_location="cpu"))
@@ -143,6 +165,13 @@ def evaluate(
             print("Install matplotlib seaborn scikit-learn for visualization.")
             return
 
+        # --------------------------------------------------------
+        # Prepare output directory
+        # --------------------------------------------------------
+        out_root = Path("evaluation_results")
+        out_dir = out_root / model_type_lc  # type: ignore[name-defined]
+        out_dir.mkdir(parents=True, exist_ok=True)
+
         # Confusion matrix heatmap
         cm = confusion_matrix(all_labels, all_preds)
         plt.figure(figsize=(6, 5))
@@ -151,6 +180,10 @@ def evaluate(
         plt.ylabel("True")
         plt.title("Confusion Matrix")
         plt.tight_layout()
+
+        # Save confusion matrix image
+        cm_path = out_dir / "confusion_matrix.png"
+        plt.savefig(cm_path, dpi=300)
 
         # Sample grid
         grid_imgs = torch.stack(sample_imgs)  # shape (N, C, H, W)
@@ -183,6 +216,10 @@ def evaluate(
 
         # Add a caption mapping class idx to name
         plt.figtext(0.5, 0.01, "0 = normal, 1 = tumor", ha="center")
+
+        # Save sample grid image
+        grid_path = out_dir / "sample_grid.png"
+        plt.savefig(grid_path, dpi=300)
         plt.show()
 
         # --------------------------------------------------------
@@ -203,26 +240,17 @@ def evaluate(
                 color = "green" if pred == true else "red"
                 plt.title(f"Pred: {pred} | True: {true}", color=color, fontsize=8)
             plt.tight_layout()
+            # Save individual grid image
+            indiv_path = out_dir / "sample_individuals.png"
+            plt.savefig(indiv_path, dpi=300)
             plt.show()
 
 
 # -----------------------------------------------------------------------------
-# CLI entry point
+# Optional stand-alone execution with default parameters
 # -----------------------------------------------------------------------------
 
+
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Evaluate ViT-FA on PCam test set")
-    parser.add_argument("--checkpoint", type=str, default="checkpoints/best_model.pth")
-    parser.add_argument("--data_root", type=str, default="data/pcam")
-    parser.add_argument("--visualize", action="store_true", help="Show confusion matrix and sample predictions")
-    parser.add_argument("--limit_samples", type=int, default=None, help="Debug: limit #samples evaluated")
-    args = parser.parse_args()
-
-    evaluate(
-        checkpoint=args.checkpoint,
-        data_root=args.data_root,
-        visualize=args.visualize,
-        limit_samples=args.limit_samples,
-    ) 
+    # Directly call evaluate() with default arguments. Adjust here if needed.
+    evaluate(model_type="bp") 
