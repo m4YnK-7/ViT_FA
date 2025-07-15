@@ -39,12 +39,14 @@ The expected folder structure after download is:
 data/
 └── pcam/
     ├── train/
-    │   ├── tumor/...
-    │   └── normal/...
+    │   ├── train_img.h5
+    │   └── train_label.h5
     ├── val/
-    │   ├── tumor/...
-    │   └── normal/...
-    └── test/...
+    │   ├── val_img.h5
+    │   └── val_label.h5
+    └── test/
+        ├── test_img.h5
+        └── test_label.h5
 ```
 
 ## Quick Start
@@ -67,5 +69,7 @@ In this codebase, every `nn.Linear` inside the ViT is replaced by a `LinearFA` l
 
 ## References
 
-* Lillicrap, Timothy P., et al. "Random synaptic feedback weights support error backpropagation for deep learning." Nature Communications (2016).
-* Dosovitskiy, Alexey, et al. "An image is worth 16x16 words: Transformers for image recognition at scale." ICLR 2021. 
+[1] Lillicrap, Timothy P., et al. "Random synaptic feedback weights support error backpropagation for deep learning." Nature Communications (2016).
+[2] Dosovitskiy, Alexey, et al. "An image is worth 16x16 words: Transformers for image recognition at scale." ICLR 2021. 
+[3] B. S. Veeling, J. Linmans, J. Winkens, T. Cohen, M. Welling. "Rotation Equivariant CNNs for Digital Pathology". arXiv:1806.03962
+[4] Ehteshami Bejnordi et al. Diagnostic Assessment of Deep Learning Algorithms for Detection of Lymph Node Metastases in Women With Breast Cancer. JAMA: The Journal of the American Medical Association, 318(22), 2199–2210. doi:jama.2017.14585
