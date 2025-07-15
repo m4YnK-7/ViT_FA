@@ -1,2 +1,12 @@
-.h5
-.csv
+*.h5
+*.csv
+__pycache__/
+
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.ico
+*.webp
+*.svg

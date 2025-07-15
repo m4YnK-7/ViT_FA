@@ -23,12 +23,33 @@ class _LinearFAFunction(Function):
 
     @staticmethod
     def backward(ctx, grad_output: torch.Tensor):
+        """Compute gradients with support for batched inputs (>=2 dims).
+
+        grad_output / input can have arbitrary leading batch dimensions, e.g.
+        (B, N, out_features). We reshape them to 2-D before computing weight
+        and bias gradients so that ``matmul`` works without broadcasting
+        pitfalls.
+        """
+
         input, weight, bias, B = ctx.saved_tensors
-        # Feedback Alignment: use fixed random matrix B instead of Wᵀ for grad_input
-        grad_input = grad_output.matmul(B)
-        # Weight gradients use original grad_output as in BP (local) for simplicity
-        grad_weight = grad_output.t().matmul(input)
-        grad_bias = grad_output.sum(0) if bias is not None else None
+
+        # --------------------------- grad_input ---------------------------
+        # Feedback Alignment: use fixed random matrix B (not Wᵀ)
+        grad_input = grad_output.matmul(B)  # broadcast matmul over batch dims
+
+        # --------------------------- grad_weight --------------------------
+        in_features = input.shape[-1]
+        out_features = weight.shape[0]
+
+        # Flatten batch dimensions so we have shape (total_elems, features)
+        grad_out_2d = grad_output.reshape(-1, out_features)
+        input_2d = input.reshape(-1, in_features)
+
+        grad_weight = grad_out_2d.t().matmul(input_2d)
+
+        # --------------------------- grad_bias ----------------------------
+        grad_bias = grad_out_2d.sum(0) if bias is not None else None
+
         return grad_input, grad_weight, grad_bias, None  # B has no grad
 
 
@@ -178,7 +199,8 @@ class ViTFA(nn.Module):
     def _init_weights(self):
         nn.init.trunc_normal_(self.pos_embed, std=0.02)
         nn.init.trunc_normal_(self.cls_token, std=0.02)
-        nn.init.zeros_(self.head.bias)
+        if self.head.bias is not None:
+            nn.init.zeros_(self.head.bias)
 
     def forward(self, x: torch.Tensor):
         B = x.shape[0]
