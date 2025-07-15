@@ -40,6 +40,7 @@ def train(
     device: Optional[str] = None,
     limit_samples: Optional[int] = None,
     visualize: bool = False,
+    log_dir: str = "logs",
     model_type: str = "fa",
 ) -> None:
     """Train ViT with Feedback Alignment (ViTFA) on the PCam dataset.
@@ -62,6 +63,8 @@ def train(
         Root directory under which model-specific subfolders will be created.
     model_type : {"fa", "bp"}, default "fa"
         Which model variant to train.
+    log_dir : str, default "logs"
+        Directory where log files will be stored under a subfolder for each model.
     device : str or None, default None
         Device on which to run the training ("cuda"/"cpu"). If None, chooses
         CUDA if available, else CPU.
@@ -147,6 +150,24 @@ def train(
     # Training / validation loop
     # ---------------------------------------------------------------------
     model_ckpt_dir = Path(checkpoint_dir) / model_type_lc
+    # ------------------------------------------------------------------
+    # Logging setup
+    # ------------------------------------------------------------------
+    from pathlib import Path as _Path
+    import logging as _logging
+
+    log_path_dir = _Path(log_dir) / model_type_lc
+    log_path_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_path_dir / "train.log"
+
+    logger = _logging.getLogger(f"train_{model_type_lc}")
+    logger.setLevel(_logging.INFO)
+    # Avoid duplicate handlers if train() called multiple times
+    if not logger.handlers:
+        _fh = _logging.FileHandler(log_path, mode="w")
+        _fh.setFormatter(_logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+        logger.addHandler(_fh)
+
     os.makedirs(model_ckpt_dir, exist_ok=True)
     best_acc = 0.0
 
@@ -199,10 +220,13 @@ def train(
         val_accs.append(val_acc)
         scheduler.step()
 
-        print(
-            f"Epoch {epoch}: "
-            f"Train Loss {train_loss:.4f} Acc {train_acc:.4f} | "
-            f"Val Loss {val_loss:.4f} Acc {val_acc:.4f}"
+        # Log only validation metrics each epoch (skip per-epoch train metrics)
+        logger.info(
+            "Epoch %d/%d - Val Loss %.4f - Val Acc %.4f",
+            epoch,
+            epochs,
+            val_loss,
+            val_acc,
         )
 
         # Save the best model
@@ -210,9 +234,10 @@ def train(
             best_acc = val_acc
             ckpt_path = model_ckpt_dir / "best_model.pth"
             torch.save(model.state_dict(), ckpt_path)
-            print(f"Saved new best model (Acc={best_acc:.4f}) to {ckpt_path}")
+            logger.info("New best model saved with Val Acc %.4f -> %s", best_acc, ckpt_path)
 
-    print("Training complete.")
+    # Final training summary
+    logger.info("Training complete. Best Val Acc %.4f", best_acc)
 
     # ------------------------------------------------------------------
     # Visualization
@@ -246,7 +271,7 @@ def train(
             fig_path = model_ckpt_dir / "training_curves.png"
             plt.savefig(fig_path)
             plt.show()
-            print(f"Training curves saved to {fig_path}")
+            logger.info("Training curves saved to %s", fig_path)
         except ImportError:
             print("matplotlib not installed; skipping visualization.")
 
@@ -257,4 +282,5 @@ def train(
 
 if __name__ == "__main__":
     # Quick sanity-check run on 10,000 samples with visualization.
-    train(limit_samples=10000, visualize=True, model_type="bp") 
+    train(limit_samples=10000, visualize=True, model_type="bp")
+    # train(limit_samples=10000, visualize=True, model_type="fa") 

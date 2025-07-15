@@ -1,0 +1,14 @@
+2025-07-15 12:16:16,186 - INFO - Epoch 1/10 - Val Loss 0.6691 - Val Acc 0.5470
+2025-07-15 12:16:16,193 - INFO - New best model saved with Val Acc 0.5470 -> checkpoints\bp\best_model.pth
+2025-07-15 12:17:06,227 - INFO - Epoch 2/10 - Val Loss 0.7716 - Val Acc 0.5121
+2025-07-15 12:17:59,121 - INFO - Epoch 3/10 - Val Loss 0.7168 - Val Acc 0.5415
+2025-07-15 12:18:51,404 - INFO - Epoch 4/10 - Val Loss 0.5264 - Val Acc 0.7645
+2025-07-15 12:18:51,412 - INFO - New best model saved with Val Acc 0.7645 -> checkpoints\bp\best_model.pth
+2025-07-15 12:19:43,674 - INFO - Epoch 5/10 - Val Loss 0.5677 - Val Acc 0.7065
+2025-07-15 12:20:44,818 - INFO - Epoch 6/10 - Val Loss 0.5858 - Val Acc 0.6950
+2025-07-15 12:21:35,416 - INFO - Epoch 7/10 - Val Loss 0.5946 - Val Acc 0.6939
+2025-07-15 12:22:38,591 - INFO - Epoch 8/10 - Val Loss 0.6710 - Val Acc 0.6318
+2025-07-15 12:23:35,910 - INFO - Epoch 9/10 - Val Loss 0.6606 - Val Acc 0.6193
+2025-07-15 12:24:25,893 - INFO - Epoch 10/10 - Val Loss 0.6099 - Val Acc 0.6624
+2025-07-15 12:24:25,893 - INFO - Training complete. Best Val Acc 0.7645
+2025-07-15 12:24:42,429 - INFO - Training curves saved to checkpoints\bp\training_curves.png

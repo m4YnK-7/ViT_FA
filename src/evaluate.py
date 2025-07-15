@@ -44,6 +44,7 @@ def evaluate(
     num_vis_images: int = 25,
     limit_samples: Optional[int] = None,
     model_type: str = "fa",
+    log_dir: str = "logs",
 ) -> None:
     """Evaluate a trained model on the *test* split and optionally visualise.
 
@@ -71,6 +72,8 @@ def evaluate(
         Which model type to evaluate:
         - "fa" for Feedback Alignment (ViTFA)
         - "bp" for standard back-prop (ViTBP)
+    log_dir : str, default "logs"
+        Directory where log files will be stored.
     """
 
     # ------------------------ setup ------------------------
@@ -153,7 +156,22 @@ def evaluate(
     total_loss /= len(test_loader.dataset)  # type: ignore[arg-type]
     total_acc /= len(test_loader.dataset)   # type: ignore[arg-type]
 
-    print(f"Test Loss: {total_loss:.4f} | Test Accuracy: {total_acc:.4f}")
+    # ----------------------- logging -----------------------
+    from pathlib import Path as _Path
+    import logging as _logging
+
+    log_path_dir = _Path(log_dir) / model_type_lc
+    log_path_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_path_dir / "eval.log"
+
+    logger = _logging.getLogger(f"eval_{model_type_lc}")
+    logger.setLevel(_logging.INFO)
+    if not logger.handlers:
+        _fh = _logging.FileHandler(log_path, mode="w")
+        _fh.setFormatter(_logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+        logger.addHandler(_fh)
+
+    logger.info("Test Loss %.4f | Test Accuracy %.4f", total_loss, total_acc)
 
     # ----------------------- visualisation -----------------------
     if visualize:
@@ -253,4 +271,5 @@ def evaluate(
 
 if __name__ == "__main__":
     # Directly call evaluate() with default arguments. Adjust here if needed.
+    # evaluate(model_type="fa")
     evaluate(model_type="bp") 
