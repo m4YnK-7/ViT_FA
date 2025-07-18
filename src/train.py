@@ -282,5 +282,5 @@ def train(
 
 if __name__ == "__main__":
     # Quick sanity-check run on 10,000 samples with visualization.
-    train(limit_samples=10000, visualize=True, model_type="bp")
-    # train(limit_samples=10000, visualize=True, model_type="fa") 
+    # train(limit_samples=10000, visualize=True, model_type="bp")
+    train(limit_samples=10000, visualize=True, model_type="fa") 

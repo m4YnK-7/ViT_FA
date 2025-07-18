@@ -271,5 +271,5 @@ def evaluate(
 
 if __name__ == "__main__":
     # Directly call evaluate() with default arguments. Adjust here if needed.
-    # evaluate(model_type="fa")
-    evaluate(model_type="bp") 
+    evaluate(model_type="fa")
+    # evaluate(model_type="bp") 
