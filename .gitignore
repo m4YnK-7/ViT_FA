@@ -2,8 +2,8 @@
 *.csv
 __pycache__/
 
-tuned_checkpoints/
-tuned_logs/
+tuned_checkpoint/
+tuned_results.csv
 
 *.jpg
 *.jpeg

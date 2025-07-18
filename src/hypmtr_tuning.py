@@ -46,7 +46,14 @@ from tqdm import tqdm
 
 from src.dataset import PCamDataset, download_pcam
 from src.models.vit_fa import ViTFA
-from src.train import accuracy  # reuse existing util
+# Remove argparse; switching to function parameter interface
+from src.models.vit_bp import ViTBP
+
+# Map string identifiers to model classes for easy selection
+MODEL_MAP = {
+    "fa": ViTFA,  # Feedback Alignment
+    "bp": ViTBP,  # Standard Back-propagation
+}
 
 # -----------------------------------------------------------------------------
 # Search-space definition
@@ -73,7 +80,7 @@ LIMIT_SAMPLES: int | None = 10000  # e.g. 1000 for quick debugging
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Output directories
-CKPT_ROOT = Path("tuned_checkpoints")
+CKPT_ROOT = Path("tuned_checkpoint")
 CKPT_ROOT.mkdir(exist_ok=True, parents=True)
 
 RESULTS_PATH = Path("tuned_results.csv")
@@ -105,12 +112,17 @@ def is_valid_combo(hp: Dict) -> bool:
     return hp["embed_dim"] % hp["num_heads"] == 0
 
 
-def cfg2name(hp: Dict) -> str:
-    """Create a unique string identifier for a hyper-parameter set."""
-    return (
+def cfg2name(hp: Dict, model_type: str | None = None) -> str:
+    """Create a unique string identifier for a hyper-parameter set.
+
+    Adding the optional ``model_type`` prefix avoids collisions when tuning
+    both Feedback Alignment (``fa``) and Back-propagation (``bp``) variants.
+    """
+    base = (
         f"p{hp['p']}_ps{hp['patch_size']}_d{hp['depth']}_"
         f"mr{hp['mlp_ratio']}_ed{hp['embed_dim']}_h{hp['num_heads']}"
     )
+    return f"{model_type}_{base}" if model_type else base
 
 
 def prepare_dataloaders() -> Tuple[DataLoader, DataLoader]:
@@ -153,13 +165,20 @@ def prepare_dataloaders() -> Tuple[DataLoader, DataLoader]:
     return train_loader, val_loader
 
 
-def train_one(hp: Dict, train_loader: DataLoader, val_loader: DataLoader, ckpt_dir: Path, log_path: Path) -> float:
-    """Train a ViTFA model for a single hyper-parameter combination.
+def train_one(
+    hp: Dict,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    ckpt_dir: Path,
+    log_path: Path,
+    model_type: str,
+) -> float:
+    """Train a single ViT model (FA or BP) for one hyper-parameter combination.
 
     Returns the best validation accuracy achieved.
     """
     # ---------------------------- logging setup ----------------------------
-    logger = logging.getLogger(cfg2name(hp))
+    logger = logging.getLogger(cfg2name(hp, model_type))
     logger.setLevel(logging.INFO)
     logger.handlers = []  # reset between runs
     fh = logging.FileHandler(log_path, mode="w")
@@ -167,7 +186,8 @@ def train_one(hp: Dict, train_loader: DataLoader, val_loader: DataLoader, ckpt_d
     logger.addHandler(fh)
 
     # ----------------------------- model -----------------------------------
-    model = ViTFA(
+    model_cls = MODEL_MAP[model_type]
+    model = model_cls(
         img_size=96,  # matches dataset size
         patch_size=hp["patch_size"],
         embed_dim=hp["embed_dim"],
@@ -188,7 +208,7 @@ def train_one(hp: Dict, train_loader: DataLoader, val_loader: DataLoader, ckpt_d
     for epoch in range(1, NUM_EPOCHS + 1):
         # ----------------- training -----------------
         model.train()
-        for imgs, labels in tqdm(train_loader, leave=False, desc=f"E{epoch} train {cfg2name(hp)}"):
+        for imgs, labels in tqdm(train_loader, leave=False, desc=f"E{epoch} train {cfg2name(hp, model_type)}"):
             imgs, labels = imgs.to(DEVICE), labels.to(DEVICE)
             optimizer.zero_grad()
             loss = criterion(model(imgs), labels)
@@ -219,7 +239,16 @@ def train_one(hp: Dict, train_loader: DataLoader, val_loader: DataLoader, ckpt_d
 # Main driver
 # -----------------------------------------------------------------------------
 
-def main() -> None:
+def main(model_type: str = "fa") -> None:
+    """Hyper-parameter tuning entry point.
+
+    Parameters
+    ----------
+    model_type : {"fa", "bp"}, default "fa"
+        Select Feedback Alignment ("fa") or Back-propagation ("bp") variant.
+    """
+    model_type = model_type.lower()
+
     # load existing CSV to skip finished configs
     done_cfgs: set[str] = set()
     if RESULTS_PATH.exists():
@@ -241,17 +270,17 @@ def main() -> None:
     for hp in iter_param_grid(PARAM_GRID):
         if not is_valid_combo(hp):
             continue  # skip invalid embed_dim / num_heads combos
-        cfg_name = cfg2name(hp)
+        cfg_name = cfg2name(hp, model_type)
         if cfg_name in done_cfgs:
             print(f"Skipping already completed {cfg_name}")
             continue
 
         print(f"\n=== Running {cfg_name} ===")
-        ckpt_dir = CKPT_ROOT / cfg_name
+        ckpt_dir = CKPT_ROOT / model_type / cfg_name
         ckpt_dir.mkdir(parents=True, exist_ok=True)
         log_path = ckpt_dir / "train.log"
 
-        best_acc = train_one(hp, train_loader, val_loader, ckpt_dir, log_path)
+        best_acc = train_one(hp, train_loader, val_loader, ckpt_dir, log_path, model_type)
 
         writer.writerow({
             "cfg_name": cfg_name,
@@ -271,4 +300,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main() 
+    # Default run (Feedback Alignment). Importers can call ``main("bp")``.
+    main("bp") 
