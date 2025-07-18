@@ -6,12 +6,12 @@ combination. The best validation accuracy achieved within the training
 run is recorded along with the checkpoint and log files.
 
 Search space (can be modified below):
-    dropouts   : [0.05, 0.10, 0.15]
-    patch_size : [8, 12, 16]
-    depth      : [4, 6, 8, 10]
-    mlp_ratio  : [3, 4, 5]
-    embed_dim  : [64, 128, 256, 512]
-    num_heads  : [4, 8, 12]
+    dropouts   : [0.05, 0.10]
+    patch_size : [12, 16]
+    depth      : [4, 6, 8]
+    mlp_ratio  : [3, 4]
+    embed_dim  : [64, 128, 256]
+    num_heads  : [4, 8]
 
 Outputs
 -------
@@ -52,12 +52,12 @@ from src.train import accuracy  # reuse existing util
 # Search-space definition
 # -----------------------------------------------------------------------------
 PARAM_GRID = {
-    "p": [0.05, 0.10, 0.15],
-    "patch_size": [8, 12, 16],
-    "depth": [4, 6, 8, 10],
-    "mlp_ratio": [3, 4, 5],
-    "embed_dim": [64, 128, 256, 512],
-    "num_heads": [4, 8, 12],
+    "p": [0.05, 0.10],  # dropout rates
+    "patch_size": [12, 16],
+    "depth": [4, 6, 8],
+    "mlp_ratio": [3, 4],
+    "embed_dim": [64, 128, 256],
+    "num_heads": [4, 8],
 }
 
 # -----------------------------------------------------------------------------
@@ -74,9 +74,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Output directories
 CKPT_ROOT = Path("tuned_checkpoints")
-LOG_ROOT = Path("tuned_logs")
 CKPT_ROOT.mkdir(exist_ok=True, parents=True)
-LOG_ROOT.mkdir(exist_ok=True, parents=True)
 
 RESULTS_PATH = Path("tuned_results.csv")
 CSV_HEADER = [
@@ -250,8 +248,8 @@ def main() -> None:
 
         print(f"\n=== Running {cfg_name} ===")
         ckpt_dir = CKPT_ROOT / cfg_name
-        log_path = LOG_ROOT / cfg_name / "train.log"
-        log_path.parent.mkdir(parents=True, exist_ok=True)
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        log_path = ckpt_dir / "train.log"
 
         best_acc = train_one(hp, train_loader, val_loader, ckpt_dir, log_path)
 
